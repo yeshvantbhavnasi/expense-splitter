@@ -239,6 +239,55 @@ alembic downgrade -1
 4. Push to the branch
 5. Create a Pull Request
 
+## GitHub Actions Setup
+
+### 2. Set Up GitHub Actions
+
+1. Get the required secrets:
+
+   **Railway**:
+   - Go to Railway dashboard → Project Settings
+   - Create a new API Key
+   - Copy the token value
+
+   **Vercel**:
+   - Go to Vercel dashboard → Project Settings → General
+   - Copy the following values:
+     - Project ID
+     - Org ID
+   - Go to Settings → Tokens
+   - Create and copy a new token
+
+2. Add secrets to GitHub:
+   - Go to your GitHub repository → Settings → Secrets and variables → Actions
+   - Add the following secrets:
+     ```
+     # Backend secrets
+     RAILWAY_TOKEN=your-railway-token
+     SUPABASE_URL=your-supabase-url
+     SUPABASE_KEY=your-supabase-key
+     DATABASE_URL=your-database-url
+     JWT_SECRET=your-jwt-secret
+
+     # Frontend secrets
+     VERCEL_TOKEN=your-vercel-token
+     VERCEL_ORG_ID=your-org-id
+     VERCEL_PROJECT_ID=your-project-id
+     VITE_API_URL=your-railway-backend-url
+     ```
+
+3. Push your code to trigger the workflows:
+```bash
+git add .
+git commit -m "Add GitHub Actions workflows"
+git push
+```
+
+The GitHub Actions will:
+- Run tests for both frontend and backend
+- Deploy backend to Railway on successful push to main
+- Deploy frontend to Vercel on successful push to main
+
 ## License
 
 This project is licensed under the MIT License.
