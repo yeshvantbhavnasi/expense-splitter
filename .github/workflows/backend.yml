@@ -30,7 +30,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-asyncio httpx
         
     - name: Run linting
       run: |
@@ -40,8 +40,9 @@ jobs:
         
     - name: Run tests with coverage
       run: |
-        pytest --cov=. --cov-report=xml
+        PYTHONPATH=$PYTHONPATH:$(pwd) pytest --cov=. --cov-report=xml
       env:
+        TESTING: "1"
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
