@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     
     # Frontend URL for redirects
     FRONTEND_URL: str = "http://localhost:5173"
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
 
     class Config:
         env_file = ".env"
