@@ -82,64 +82,58 @@ export const userService = {
 };
 
 export const groupService = {
-  getGroups: async (): Promise<Group[]> => {
-    const response = await client.get('/groups');
-    return response.data;
+  getGroups(): Promise<Group[]> {
+    return client.get<Group[]>('/groups/').then(response => response.data);
   },
 
-  getGroup: async (groupId: number): Promise<Group> => {
-    const response = await client.get(`/groups/${groupId}`);
-    return response.data;
+  getGroup(groupId: string): Promise<Group> {
+    return client.get<Group>(`/groups/${groupId}`).then(response => response.data);
   },
 
-  createGroup: async (groupData: { name: string; description: string }): Promise<Group> => {
-    const response = await client.post('/groups', groupData);
-    return response.data;
+  createGroup(groupData: { name: string; description: string }): Promise<Group> {
+    return client.post<Group>('/groups/', groupData).then(response => response.data);
   },
 
-  addMember: async (groupId: number, userId: number): Promise<void> => {
-    await client.post(`/groups/${groupId}/members/${userId}`);
+  addMember(groupId: string, userId: string): Promise<void> {
+    return client.post(`/groups/${groupId}/members/${userId}`);
   },
 
-  deleteGroup: async (groupId: number): Promise<void> => {
-    await client.delete(`/groups/${groupId}`);
+  deleteGroup(groupId: string): Promise<void> {
+    return client.delete(`/groups/${groupId}`);
   },
 };
 
 export const expenseService = {
-  createExpense: async (groupId: number, expenseData: {
+  createExpense(groupId: string, expenseData: {
     amount: number;
     description: string;
-    paid_by_id: number;
-    splits: { user_id: number; amount: number }[];
-  }): Promise<Expense> => {
-    const { data } = await client.post<Expense>(`/groups/${groupId}/expenses/`, {
-      ...expenseData,
-      group_id: groupId
-    });
-    return data;
+    paid_by_id: string;
+    splits: { user_id: string; amount: number }[];
+  }): Promise<Expense> {
+    return client.post<Expense>(`/groups/${groupId}/expenses/`, expenseData)
+      .then(response => response.data);
   },
 
-  getGroupExpenses: async (groupId: number): Promise<Expense[]> => {
-    const { data } = await client.get<Expense[]>(`/groups/${groupId}/expenses`);
-    return data;
+  getGroupExpenses(groupId: string): Promise<Expense[]> {
+    return client.get<Expense[]>(`/groups/${groupId}/expenses/`)
+      .then(response => response.data);
   },
 
-  getGroupBalances: async (groupId: number): Promise<{ [key: number]: number }> => {
-    const { data } = await client.get<{ [key: number]: number }>(`/groups/${groupId}/expenses/balances`);
-    return data;
+  getGroupBalances(groupId: string): Promise<{ [key: string]: number }> {
+    return client.get(`/settlements/group/${groupId}/balances`)
+      .then(response => response.data);
   },
 
-  getExpenseDetails: async (groupId: number, expenseId: number): Promise<Expense> => {
-    const response = await client.get<Expense>(`/groups/${groupId}/expenses/${expenseId}`);
-    return response.data;
+  getExpenseDetails(groupId: string, expenseId: string): Promise<Expense> {
+    return client.get<Expense>(`/groups/${groupId}/expenses/${expenseId}`)
+      .then(response => response.data);
   },
 
-  uploadReceipt: async (groupId: number, expenseId: number, file: File) => {
+  uploadReceipt(groupId: string, expenseId: string, file: File) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('receipt', file);
 
-    const response = await client.post(
+    return client.post(
       `/groups/${groupId}/expenses/${expenseId}/receipt`,
       formData,
       {
@@ -147,51 +141,44 @@ export const expenseService = {
           'Content-Type': 'multipart/form-data',
         },
       }
-    );
-    
-    // Prepend API_URL to the receipt_url if it's a relative path
-    const receipt_url = response.data.receipt_url.startsWith('http') 
-      ? response.data.receipt_url 
-      : `${API_URL}${response.data.receipt_url}`;
-    
-    return { receipt_url };
+    ).then(response => response.data);
   },
 
-  deleteExpense: async (groupId: number, expenseId: number): Promise<void> => {
-    await client.delete(`/groups/${groupId}/expenses/${expenseId}`);
+  deleteExpense(groupId: string, expenseId: string): Promise<void> {
+    return client.delete(`/groups/${groupId}/expenses/${expenseId}`);
   },
 };
 
 interface Settlement {
-  paid_by_id: number;
-  paid_to_id: number;
+  paid_by_id: string;
+  paid_to_id: string;
   amount: number;
-  group_id: number;
+  group_id: string;
 }
 
 interface GroupBalances {
   balances: Array<{
-    user_id: number;
+    user_id: string;
     user_name: string;
     balance: number;
   }>;
   suggested_settlements: Array<{
-    paid_by_id: number;
+    paid_by_id: string;
     paid_by_name: string;
-    paid_to_id: number;
+    paid_to_id: string;
     paid_to_name: string;
     amount: number;
   }>;
 }
 
 export const settlementService = {
-  createSettlement: async (settlement: Settlement): Promise<any> => {
-    const { data } = await client.post('/settlements', settlement);
-    return data;
+  createSettlement(settlement: Settlement): Promise<any> {
+    return client.post('/settlements/', settlement)
+      .then(response => response.data);
   },
 
-  getGroupBalances: async (groupId: number): Promise<GroupBalances> => {
-    const { data } = await client.get(`/settlements/group/${groupId}/balances`);
-    return data;
+  getGroupBalances(groupId: string): Promise<GroupBalances> {
+    return client.get(`/settlements/group/${groupId}/balances`)
+      .then(response => response.data);
   },
 };

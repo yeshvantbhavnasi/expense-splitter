@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Dict
+from uuid import UUID
 
 import database
 import auth
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/settlements", tags=["settlements"])
 def create_settlement(
     settlement: schemas.SettlementCreate,
     db: Session = Depends(database.get_db),
-    current_user: schemas.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Verify users are in the group
     group = db.query(models.Group).filter(models.Group.id == settlement.group_id).first()
@@ -42,84 +43,82 @@ def create_settlement(
 
 @router.get("/group/{group_id}/balances", response_model=schemas.GroupSettlementSummary)
 def get_group_balances(
-    group_id: int,
+    group_id: UUID,
     db: Session = Depends(database.get_db),
-    current_user: schemas.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Get group and verify user is a member
-    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.members.any(id=current_user.id)
+    ).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    if current_user.id not in [member.id for member in group.members]:
-        raise HTTPException(status_code=403, detail="Not a member of this group")
-    
-    # Calculate balances
-    balances: Dict[int, float] = {member.id: 0.0 for member in group.members}
-    
-    # Add expenses
-    for expense in group.expenses:
-        # Add amount paid by user
-        balances[expense.paid_by_id] += expense.amount
-        
-        # Subtract splits from each user
-        for split in expense.splits:
-            balances[split.user_id] -= split.amount
-    
-    # Subtract settlements
-    settlements = db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all()
-    for settlement in settlements:
-        balances[settlement.paid_by_id] += settlement.amount
-        balances[settlement.paid_to_id] -= settlement.amount
-    
-    # Convert balances to response format
-    balance_response = []
+
+    # Calculate balances for each member
+    balances = {}
     for member in group.members:
-        balance_response.append({
+        balances[member.id] = {
             "user_id": member.id,
             "user_name": member.full_name,
             "profile_picture_url": member.profile_picture_url,
-            "balance": round(balances[member.id], 2)
-        })
-    
+            "balance": 0.0
+        }
+
+    # Calculate expenses
+    expenses = db.query(models.Expense).filter(models.Expense.group_id == group_id).all()
+    for expense in expenses:
+        # Add amount paid by user
+        balances[expense.paid_by_id]["balance"] += expense.amount
+        
+        # Subtract splits from respective users
+        for split in expense.splits:
+            balances[split.user_id]["balance"] -= split.amount
+
+    # Calculate settlements
+    settlements = db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all()
+    for settlement in settlements:
+        balances[settlement.paid_by_id]["balance"] += settlement.amount
+        balances[settlement.paid_to_id]["balance"] -= settlement.amount
+
+    # Convert balances dict to list
+    balance_list = list(balances.values())
+
     # Calculate suggested settlements
     suggested_settlements = []
-    debtors = [(uid, bal) for uid, bal in balances.items() if bal < -0.01]
-    creditors = [(uid, bal) for uid, bal in balances.items() if bal > 0.01]
-    
-    debtors.sort(key=lambda x: x[1])  # Sort by amount owed (ascending)
-    creditors.sort(key=lambda x: x[1], reverse=True)  # Sort by amount owed (descending)
-    
-    while debtors and creditors:
-        debtor_id, debt = debtors[0]
-        creditor_id, credit = creditors[0]
-        
-        # Get the smaller of the two amounts
-        amount = min(abs(debt), credit)
-        
-        if amount >= 0.01:  # Only suggest settlements worth at least 1 cent
-            debtor = next(m for m in group.members if m.id == debtor_id)
-            creditor = next(m for m in group.members if m.id == creditor_id)
-            
-            suggested_settlements.append({
-                "paid_by_id": debtor_id,
-                "paid_by_name": debtor.full_name,
-                "paid_to_id": creditor_id,
-                "paid_to_name": creditor.full_name,
-                "amount": round(amount, 2)
-            })
-            
-            # Update remaining balances
-            debtors[0] = (debtor_id, debt + amount)
-            creditors[0] = (creditor_id, credit - amount)
-            
-            # Remove settled balances
-            if abs(debtors[0][1]) < 0.01:
-                debtors.pop(0)
-            if abs(creditors[0][1]) < 0.01:
+    debtors = [b for b in balance_list if b["balance"] < -0.01]  # Those who owe money
+    creditors = [b for b in balance_list if b["balance"] > 0.01]  # Those who are owed money
+
+    debtors.sort(key=lambda x: x["balance"])  # Sort by balance ascending (most negative first)
+    creditors.sort(key=lambda x: x["balance"], reverse=True)  # Sort by balance descending (most positive first)
+
+    for debtor in debtors:
+        while debtor["balance"] < -0.01 and creditors:  # While debtor still owes money
+            creditor = creditors[0]
+            if creditor["balance"] < 0.01:  # If creditor has been fully paid
                 creditors.pop(0)
-    
+                continue
+
+            # Calculate settlement amount
+            amount = min(-debtor["balance"], creditor["balance"])
+            if amount > 0:
+                suggested_settlements.append({
+                    "from_user": {
+                        "id": debtor["user_id"],
+                        "name": debtor["user_name"]
+                    },
+                    "to_user": {
+                        "id": creditor["user_id"],
+                        "name": creditor["user_name"]
+                    },
+                    "amount": round(amount, 2)
+                })
+
+                # Update balances
+                debtor["balance"] += amount
+                creditor["balance"] -= amount
+
     return {
-        "balances": balance_response,
+        "balances": balance_list,
         "suggested_settlements": suggested_settlements
     }

@@ -1,38 +1,46 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, DateTime, Table
+from sqlalchemy import Boolean, Column, ForeignKey, String, Float, DateTime, Text, Table
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from database import Base
+import uuid
 from datetime import datetime
+from database import Base
 
 # Association table for group members
 group_members = Table(
     'group_members',
     Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id')),
-    Column('group_id', Integer, ForeignKey('groups.id'))
+    Column('user_id', UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE')),
+    Column('group_id', UUID(as_uuid=True), ForeignKey('groups.id', ondelete='CASCADE')),
+    extend_existing=True
 )
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True)
-    hashed_password = Column(String(255))
-    full_name = Column(String(255))
-    profile_picture_url = Column(String(255), nullable=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, index=True)
+    full_name = Column(String)
+    hashed_password = Column(String)
+    profile_picture_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    expenses_paid = relationship("Expense", back_populates="paid_by")
+    expenses_paid = relationship("Expense", foreign_keys="[Expense.paid_by_id]", back_populates="paid_by")
+    expense_splits = relationship("ExpenseSplit", back_populates="user")
     groups = relationship("Group", secondary=group_members, back_populates="members")
+    settlements_paid = relationship("Settlement", foreign_keys="[Settlement.paid_by_id]", back_populates="paid_by")
+    settlements_received = relationship("Settlement", foreign_keys="[Settlement.paid_to_id]", back_populates="paid_to")
 
 class Group(Base):
     __tablename__ = "groups"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), index=True)
-    description = Column(String(1000), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     expenses = relationship("Expense", back_populates="group", cascade="all, delete-orphan")
@@ -42,43 +50,54 @@ class Group(Base):
 class Expense(Base):
     __tablename__ = "expenses"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     amount = Column(Float, nullable=False)
-    description = Column(String(255), nullable=False)
+    description = Column(String)
     date = Column(DateTime, default=datetime.utcnow)
-    group_id = Column(Integer, ForeignKey('groups.id'), nullable=False)
-    paid_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    receipt_url = Column(String(255), nullable=True)
-    
+    receipt_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Foreign Keys
+    paid_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete='CASCADE'))
+    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id", ondelete='CASCADE'))
+
     # Relationships
+    paid_by = relationship("User", foreign_keys=[paid_by_id], back_populates="expenses_paid")
     group = relationship("Group", back_populates="expenses")
-    paid_by = relationship("User", foreign_keys=[paid_by_id])
-    splits = relationship("ExpenseSplit", back_populates="expense")
+    splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
 
 class ExpenseSplit(Base):
     __tablename__ = "expense_splits"
 
-    id = Column(Integer, primary_key=True, index=True)
-    expense_id = Column(Integer, ForeignKey("expenses.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
-    amount = Column(Float)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    amount = Column(Float, nullable=False)
     is_settled = Column(Boolean, default=False)
-    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Foreign Keys
+    expense_id = Column(UUID(as_uuid=True), ForeignKey("expenses.id", ondelete='CASCADE'))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete='CASCADE'))
+
     # Relationships
     expense = relationship("Expense", back_populates="splits")
+    user = relationship("User", back_populates="expense_splits")
 
 class Settlement(Base):
     __tablename__ = "settlements"
 
-    id = Column(Integer, primary_key=True, index=True)
-    paid_by_id = Column(Integer, ForeignKey("users.id"))
-    paid_to_id = Column(Integer, ForeignKey("users.id"))
-    amount = Column(Float)
-    group_id = Column(Integer, ForeignKey("groups.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    amount = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Foreign Keys
+    paid_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete='CASCADE'))
+    paid_to_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete='CASCADE'))
+    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id", ondelete='CASCADE'))
+
     # Relationships
-    paid_by = relationship("User", foreign_keys=[paid_by_id])
-    paid_to = relationship("User", foreign_keys=[paid_to_id])
+    paid_by = relationship("User", foreign_keys=[paid_by_id], back_populates="settlements_paid")
+    paid_to = relationship("User", foreign_keys=[paid_to_id], back_populates="settlements_received")
     group = relationship("Group", back_populates="settlements")

@@ -25,8 +25,8 @@ export default function GroupDetail() {
   const [newExpense, setNewExpense] = useState({
     amount: '',
     description: '',
-    paidById: 0, // This will be set to current user's ID once loaded
-    splits: [] as { user_id: number; amount: string }[],
+    paidById: '', 
+    splits: [] as { user_id: string; amount: string }[],
   });
   const [selectedReceipt, setSelectedReceipt] = useState<File | null>(null);
   const [showSettleModal, setShowSettleModal] = useState(false);
@@ -56,9 +56,9 @@ export default function GroupDetail() {
   const fetchGroupData = async () => {
     try {
       const [groupData, expensesData, balancesData] = await Promise.all([
-        groupService.getGroup(Number(id)),
-        expenseService.getGroupExpenses(Number(id)),
-        settlementService.getGroupBalances(Number(id)),
+        groupService.getGroup(id!),
+        expenseService.getGroupExpenses(id!),
+        settlementService.getGroupBalances(id!),
       ]);
       setGroup(groupData);
       setExpenses(expensesData);
@@ -72,7 +72,7 @@ export default function GroupDetail() {
 
   const fetchBalances = async () => {
     try {
-      const data = await settlementService.getGroupBalances(Number(id));
+      const data = await settlementService.getGroupBalances(id!);
       setBalances(data);
     } catch (err) {
       console.error('Error fetching balances:', err);
@@ -94,7 +94,7 @@ export default function GroupDetail() {
         return;
       }
 
-      const expenseResponse = await expenseService.createExpense(Number(id), {
+      const expenseResponse = await expenseService.createExpense(id!, {
         amount: parseFloat(newExpense.amount),
         description: newExpense.description,
         paid_by_id: newExpense.paidById,
@@ -107,14 +107,10 @@ export default function GroupDetail() {
       // Upload receipt if selected
       if (selectedReceipt && expenseResponse.id) {
         try {
-          const formData = new FormData();
-          formData.append('file', selectedReceipt);
-          
-          await expenseService.uploadReceipt(Number(id), expenseResponse.id, selectedReceipt);
+          await expenseService.uploadReceipt(id!, expenseResponse.id, selectedReceipt);
         } catch (uploadError) {
           console.error('Failed to upload receipt:', uploadError);
           setError('Expense created but failed to upload receipt');
-          // Continue with closing the modal since the expense was created
         }
       }
 
@@ -127,20 +123,19 @@ export default function GroupDetail() {
     }
   };
 
-  const handleAddMember = async (userId: number) => {
+  const handleAddMember = async (userId: string) => {
     if (!group) return;
     try {
       await groupService.addMember(group.id, userId);
-      await fetchGroupData(); // Refresh group data to get updated member list
+      await fetchGroupData();
     } catch (err) {
       setError('Failed to add member');
     }
   };
 
-  const handleDeleteExpense = async (expenseId: number) => {
+  const handleDeleteExpense = async (expenseId: string) => {
     try {
-      await expenseService.deleteExpense(Number(id), expenseId);
-      // Refresh the expenses list after deletion
+      await expenseService.deleteExpense(id!, expenseId);
       await fetchGroupData();
     } catch (err) {
       console.error('Failed to delete expense:', err);
@@ -174,7 +169,7 @@ export default function GroupDetail() {
     if (!group) return;
 
     const amount = parseFloat(newExpense.amount) || 0;
-    let splits: { user_id: number; amount: string }[] = [];
+    let splits: { user_id: string; amount: string }[] = [];
 
     switch (splitType) {
       case 'equal':
@@ -189,7 +184,7 @@ export default function GroupDetail() {
         { const percentPerPerson = (100 / group.members.length).toFixed(2);
         splits = group.members.map(member => ({
           user_id: member.id,
-          amount: ((amount * parseFloat(percentPerPerson)) / 100).toFixed(2)
+          amount: ((parseFloat(percentPerPerson) / 100) * amount).toFixed(2)
         }));
         break; }
       
@@ -208,7 +203,7 @@ export default function GroupDetail() {
     setNewExpense({
       amount: '',
       description: '',
-      paidById: currentUser?.id || 0,
+      paidById: currentUser?.id || '',
       splits: []
     });
     setSelectedReceipt(null);
@@ -240,7 +235,7 @@ export default function GroupDetail() {
         paid_by_id: selectedSettlement.paid_by_id,
         paid_to_id: selectedSettlement.paid_to_id,
         amount: selectedSettlement.amount,
-        group_id: Number(id)
+        group_id: id!
       });
       
       setShowSettleModal(false);
@@ -393,11 +388,9 @@ export default function GroupDetail() {
                   {expenses.length > 0 ? (
                     <ul role="list" className="-mb-8">
                       {expenses.map((expense) => {
-                        // Add additional null checks
                         const paidByUser = expense.paid_by || 
                           group?.members.find(m => m.id === expense.paid_by_id);
                         
-                        // Skip rendering if critical data is missing
                         if (!paidByUser) {
                           console.warn('Skipping expense due to missing paid by user', expense);
                           return null;
@@ -441,7 +434,7 @@ export default function GroupDetail() {
                             </div>
                           </li>
                         );
-                      }).filter(Boolean) /* Remove any null entries */}
+                      }).filter(Boolean)}
                     </ul>
                   ) : (
                     <div className="text-center py-4 text-gray-500">
@@ -465,7 +458,6 @@ export default function GroupDetail() {
 
             {balances && (
               <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Current Balances */}
                 <div className="bg-white shadow rounded-lg p-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Current Balances</h3>
                   <div className="space-y-3">
@@ -480,7 +472,6 @@ export default function GroupDetail() {
                   </div>
                 </div>
 
-                {/* Suggested Settlements */}
                 <div className="bg-white shadow rounded-lg p-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Suggested Settlements</h3>
                   {balances.suggested_settlements.length > 0 ? (
@@ -569,7 +560,7 @@ export default function GroupDetail() {
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                         value={newExpense.paidById}
                         onChange={(e) =>
-                          setNewExpense((prev) => ({ ...prev, paidById: parseInt(e.target.value) }))
+                          setNewExpense((prev) => ({ ...prev, paidById: e.target.value }))
                         }
                       >
                         <option value="">Select who paid</option>
@@ -715,7 +706,6 @@ export default function GroupDetail() {
               </div>
             </div>
           )}
-          {/* Add Member Modal */}
           {showAddMemberModal && group && (
             <AddMemberModal
               isOpen={showAddMemberModal}
@@ -724,7 +714,6 @@ export default function GroupDetail() {
               currentMembers={group.members}
             />
           )}
-          {/* Settlement Confirmation Modal */}
           {showSettleModal && selectedSettlement && (
             <div className="fixed z-10 inset-0 overflow-y-auto">
               <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

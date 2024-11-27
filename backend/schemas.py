@@ -1,6 +1,8 @@
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import uuid
+from uuid import UUID
 
 # User schemas
 class UserBase(BaseModel):
@@ -11,8 +13,11 @@ class UserCreate(UserBase):
     password: str
 
 class User(UserBase):
-    id: int
+    id: UUID
     is_active: bool
+    profile_picture_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -26,8 +31,9 @@ class GroupCreate(GroupBase):
     pass
 
 class Group(GroupBase):
-    id: int
+    id: UUID
     created_at: datetime
+    updated_at: datetime
     members: List[User]
 
     class Config:
@@ -35,15 +41,15 @@ class Group(GroupBase):
 
 # Expense schemas
 class ExpenseSplitBase(BaseModel):
-    user_id: int
+    user_id: UUID
     amount: float
 
 class ExpenseSplitCreate(ExpenseSplitBase):
     pass
 
 class ExpenseSplit(ExpenseSplitBase):
-    id: int
-    expense_id: int
+    id: UUID
+    expense_id: UUID
     is_settled: bool
 
     class Config:
@@ -52,17 +58,17 @@ class ExpenseSplit(ExpenseSplitBase):
 class ExpenseBase(BaseModel):
     amount: float
     description: str
-    group_id: int
+    group_id: UUID
 
 class ExpenseCreate(ExpenseBase):
-    paid_by_id: int
+    paid_by_id: UUID
     splits: List[ExpenseSplitCreate]
 
 class Expense(ExpenseBase):
-    id: int
+    id: UUID
     date: datetime
-    paid_by_id: int
-    group_id: int
+    paid_by_id: UUID
+    group_id: UUID
     receipt_url: Optional[str] = None
     splits: List[ExpenseSplit]
 
@@ -71,18 +77,22 @@ class Expense(ExpenseBase):
 
 # Settlement schemas
 class SettlementCreate(BaseModel):
-    paid_by_id: int
-    paid_to_id: int
+    paid_by_id: UUID
+    paid_to_id: UUID
     amount: float
-    group_id: int
+    group_id: UUID
 
-class Settlement(SettlementCreate):
-    id: int
+class Settlement(BaseModel):
+    id: UUID
+    paid_by_id: UUID
+    paid_to_id: UUID
+    amount: float
+    group_id: UUID
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SettlementResponse(BaseModel):
     settlement: Settlement
@@ -90,7 +100,7 @@ class SettlementResponse(BaseModel):
 
 # Balance schemas
 class GroupBalances(BaseModel):
-    user_id: int
+    user_id: UUID
     user_name: str
     profile_picture_url: Optional[str] = None
     balance: float

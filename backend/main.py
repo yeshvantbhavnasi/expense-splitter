@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import timedelta
 from pathlib import Path
+from config import get_settings
 
 import database
 import models
@@ -22,18 +24,27 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="Expense Splitter API")
 
-# CORS configuration - must be before any routes
+settings = get_settings()
+
+# CORS configuration
 origins = [
-    "http://localhost:5173",  # Vite default port
-    "http://localhost:5179",
+    settings.FRONTEND_URL,  # From config
+    "http://localhost:5173",  # Vite default
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 # Mount static files
@@ -100,3 +111,20 @@ async def login_for_access_token(
 @app.get("/")
 def root():
     return {"message": "Welcome to Expense Splitter API"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+@app.get("/test-db")
+async def test_db(db: Session = Depends(database.get_db)):
+    try:
+        # Try to execute a simple query using SQLAlchemy text()
+        result = db.execute(text("SELECT 1"))
+        result.scalar()  # Actually execute the query
+        return {"message": "Successfully connected to the database!"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database connection failed: {str(e)}"
+        )
