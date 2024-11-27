@@ -157,6 +157,48 @@ export default function Login() {
                 </button>
               </div>
             </form>
+
+            {/* Sponsor Section */}
+            <div className="mt-6 text-center bg-blue-50 p-4 rounded-lg">
+              <h3 className="text-xl font-semibold text-blue-800 mb-2">Support Our Project</h3>
+              <p className="text-sm text-blue-700 mb-4">
+                Help us continue developing ExpenseSplitter and improve financial collaboration tools.
+              </p>
+              <div className="flex justify-center space-x-4">
+                <a 
+                  href="https://github.com/sponsors/your-github-username" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 mr-2" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                  >
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  Sponsor on GitHub
+                </a>
+                <a 
+                  href="https://www.buymeacoffee.com/your-username" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 mr-2" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                  >
+                    <path d="M20 3H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1zm-1 10H5V5h14v8zm2 3H3v-1h18v1zm-9 4a1 1 0 0 0 1-1v-1h4v1a1 1 0 0 0 1 1h1v2H7v-2h1z"/>
+                  </svg>
+                  Buy Me a Coffee
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
