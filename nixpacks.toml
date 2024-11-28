@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["python39"]
+nixPkgs = ["python311", "python311.pkgs.pip"]
 
 [phases.install]
-cmds = ["cd backend", "python -m pip install --upgrade pip", "pip install -r requirements.txt"]
+cmds = [
+    "cd backend",
+    "pip install -r requirements.txt"
+]
 
 [start]
 cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"

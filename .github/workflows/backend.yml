@@ -16,15 +16,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
 
     steps:
     - uses: actions/checkout@v3
     
-    - name: Deploy to Railway
-      uses: railwayapp/railway-action@v1.1.0
+    - uses: bervProject/railway-deploy@main
+      env:
+        RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        RAILWAY_SERVICE: "expense-splitter-backend"
       with:
         railway_token: ${{ secrets.RAILWAY_TOKEN }}
-        service: "backend"
+        service: "expense-splitter-backend"
