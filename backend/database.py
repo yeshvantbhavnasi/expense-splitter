@@ -14,7 +14,7 @@ def get_postgres_url():
     project_id = settings.SUPABASE_URL.split('//')[1].split('.')[0]
     db_host = f"db.{project_id}.supabase.co"
     db_password = settings.SUPABASE_DB_PASSWORD  # Get from environment variable
-    return f"postgresql://postgres:{db_password}@{db_host}:5432/postgres"
+    return f"postgresql://postgres.ehsutvuazqnvhytivisq:{db_password}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
 
 # Create SQLAlchemy engine
 engine = create_engine(get_postgres_url())
