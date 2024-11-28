@@ -110,7 +110,11 @@ export const expenseService = {
     paid_by_id: string;
     splits: { user_id: string; amount: number }[];
   }): Promise<Expense> {
-    return client.post<Expense>(`/groups/${groupId}/expenses/`, expenseData)
+    const data = {
+      ...expenseData,
+      group_id: groupId
+    };
+    return client.post<Expense>(`/groups/${groupId}/expenses/`, data)
       .then(response => response.data);
   },
 
