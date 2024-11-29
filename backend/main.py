@@ -40,26 +40,19 @@ app = FastAPI(title="Expense Splitter API")
 
 settings = get_settings()
 
-# CORS configuration
-origins = [
-    settings.FRONTEND_URL,  # From config
-    "http://localhost:5173",  # Vite default
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://127.0.0.1:5175",
-    "https://expense-splitter-self.vercel.app"
-]
-
+# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "https://expense-splitter-self.vercel.app",  # Production frontend
+        "https://expense-splitter-git-main-yeshvanths-projects.vercel.app",  # Preview deployments
+        "https://expense-splitter-*.vercel.app"  # All Vercel preview deployments
+    ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=600,
+    expose_headers=["*"]
 )
 
 # Mount static files
