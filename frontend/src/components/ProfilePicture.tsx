@@ -34,7 +34,7 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
 
   return (
     <img
-      src={url.startsWith('http') ? url : `http://localhost:8000${url}`}
+      src={url}
       alt={name}
       className={`rounded-full object-cover ${sizeClasses[size]} ${className}`}
     />

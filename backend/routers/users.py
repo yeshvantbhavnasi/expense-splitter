@@ -6,15 +6,11 @@ import models
 from database import get_db
 from auth import get_password_hash, get_current_active_user
 from sqlalchemy import or_
-import os
 from datetime import datetime
-import shutil
-from pathlib import Path
+from utils.s3 import upload_file_to_s3, delete_file_from_s3
+import logging
 
-# Create upload directories if they don't exist
-UPLOAD_DIR = Path("uploads")
-PROFILE_PICTURES_DIR = UPLOAD_DIR / "profile_pictures"
-PROFILE_PICTURES_DIR.mkdir(parents=True, exist_ok=True)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -58,29 +54,41 @@ def search_users(
     ).all()
     return users
 
-@router.post("/me/profile-picture")
+@router.post("/me/profile-picture", response_model=schemas.User)
 async def upload_profile_picture(
     file: UploadFile = File(...),
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     try:
-        # Generate unique filename
-        file_extension = file.filename.split('.')[-1]
-        filename = f"{current_user.id}_{datetime.now().timestamp()}.{file_extension}"
-        file_path = PROFILE_PICTURES_DIR / filename
+        logger.info(f"Starting profile picture upload for user {current_user.id}")
+        logger.info(f"File info - filename: {file.filename}, content_type: {file.content_type}")
+
+        # Read file content
+        content = await file.read()
+        content_type = file.content_type
+
+        # Delete old profile picture if exists
+        if current_user.profile_picture_url:
+            try:
+                logger.info(f"Deleting old profile picture: {current_user.profile_picture_url}")
+                delete_file_from_s3(current_user.profile_picture_url)
+            except Exception as e:
+                logger.warning(f"Failed to delete old profile picture: {str(e)}")
+
+        # Upload to S3
+        logger.info("Uploading new profile picture to S3...")
+        profile_picture_url = upload_file_to_s3(content, content_type, folder="profile-pictures")
+        logger.info(f"Upload successful. New URL: {profile_picture_url}")
         
-        # Save file
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Generate URL
-        url = f"/static/profile_pictures/{filename}"
-        
-        # Update user profile
-        current_user.profile_picture_url = url
+        # Update user profile picture URL
+        current_user.profile_picture_url = profile_picture_url
+        current_user.updated_at = datetime.utcnow()
         db.commit()
+        db.refresh(current_user)
         
-        return {"url": url}
+        logger.info("Profile picture update completed successfully")
+        return current_user
     except Exception as e:
+        logger.error(f"Profile picture upload failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,6 +1,6 @@
 import client from './client';
 import axios from 'axios';
-import { User, Group, Expense, AuthResponse, ExpenseCreate } from '../types';
+import { User, Group, Expense, AuthResponse, ExpenseCreate, Settlement, SettlementCreate, GroupBalances, BalancesResponse, GroupSettlementSummary } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -55,22 +55,17 @@ export const userService = {
     return data;
   },
 
-  uploadProfilePicture: async (file: File): Promise<{ url: string }> => {
+  uploadProfilePicture: async (file: File): Promise<User> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await client.post('/users/me/profile-picture', formData, {
+    const { data } = await client.post<User>('/users/me/profile-picture', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
-    // Prepend API_URL to the URL if it's a relative path
-    const url = response.data.url.startsWith('http') 
-      ? response.data.url 
-      : `${API_URL}${response.data.url}`;
-    
-    return { url };
+
+    return data;
   },
 
   updatePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
@@ -104,38 +99,31 @@ export const groupService = {
 };
 
 export const expenseService = {
-  createExpense(groupId: string, expenseData: {
-    amount: number;
-    description: string;
-    paid_by_id: string;
-    splits: { user_id: string; amount: number }[];
-  }): Promise<Expense> {
-    const data = {
-      ...expenseData,
-      group_id: groupId
-    };
-    return client.post<Expense>(`/groups/${groupId}/expenses/`, data)
-      .then(response => response.data);
+  createExpense(groupId: string, expenseData: ExpenseCreate): Promise<Expense> {
+    return client.post(
+      `/groups/${groupId}/expenses/`,
+      expenseData
+    ).then(response => response.data);
   },
 
   getGroupExpenses(groupId: string): Promise<Expense[]> {
-    return client.get<Expense[]>(`/groups/${groupId}/expenses/`)
+    return client.get(`/groups/${groupId}/expenses/`)
       .then(response => response.data);
   },
 
-  getGroupBalances(groupId: string): Promise<{ [key: string]: number }> {
+  getGroupBalances(groupId: string): Promise<GroupSettlementSummary> {
     return client.get(`/groups/${groupId}/expenses/balances`)
       .then(response => response.data);
   },
 
   getExpenseDetails(groupId: string, expenseId: string): Promise<Expense> {
-    return client.get<Expense>(`/groups/${groupId}/expenses/${expenseId}`)
+    return client.get(`/groups/${groupId}/expenses/${expenseId}`)
       .then(response => response.data);
   },
 
-  uploadReceipt(groupId: string, expenseId: string, file: File) {
+  uploadReceipt(groupId: string, expenseId: string, file: File): Promise<Expense> {
     const formData = new FormData();
-    formData.append('receipt', file);
+    formData.append('file', file);
 
     return client.post(
       `/groups/${groupId}/expenses/${expenseId}/receipt`,
@@ -153,35 +141,13 @@ export const expenseService = {
   },
 };
 
-interface Settlement {
-  paid_by_id: string;
-  paid_to_id: string;
-  amount: number;
-  group_id: string;
-}
-
-interface GroupBalances {
-  balances: Array<{
-    user_id: string;
-    user_name: string;
-    balance: number;
-  }>;
-  suggested_settlements: Array<{
-    paid_by_id: string;
-    paid_by_name: string;
-    paid_to_id: string;
-    paid_to_name: string;
-    amount: number;
-  }>;
-}
-
 export const settlementService = {
-  createSettlement(settlement: Settlement): Promise<any> {
+  createSettlement(settlement: SettlementCreate): Promise<Settlement> {
     return client.post('/settlements/', settlement)
       .then(response => response.data);
   },
 
-  getGroupBalances(groupId: string): Promise<GroupBalances> {
+  getGroupBalances(groupId: string): Promise<GroupSettlementSummary> {
     return client.get(`/settlements/group/${groupId}/balances`)
       .then(response => response.data);
   },

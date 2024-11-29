@@ -7,6 +7,20 @@ from sqlalchemy import text
 from datetime import timedelta
 from pathlib import Path
 from config import get_settings
+import uvicorn
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 import database
 import models

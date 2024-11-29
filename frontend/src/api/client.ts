@@ -4,12 +4,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const client = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   withCredentials: true,
 });
 
+// Remove default Content-Type as it will be set automatically for FormData
 client.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');

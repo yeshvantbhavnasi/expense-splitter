@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     
     # Frontend URL for redirects
     FRONTEND_URL: str = "http://localhost:5173"
+
+    # AWS Settings
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+    AWS_REGION: str = "us-west-2"  # default region
+    AWS_BUCKET_NAME: str
     
     class Config:
         env_file = ".env"

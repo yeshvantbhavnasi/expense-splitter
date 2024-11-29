@@ -47,15 +47,36 @@ export default function Profile() {
     setError('');
     
     try {
-      const { url } = await userService.uploadProfilePicture(selectedImage);
-      // Update the user object with the new profile picture URL
-      if (authUser) {
-        updateUser({ ...authUser, profile_picture_url: url });
+      console.log('Starting image upload...', {
+        name: selectedImage.name,
+        type: selectedImage.type,
+        size: selectedImage.size
+      });
+
+      // Validate file type
+      if (!selectedImage.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
       }
+
+      // Validate file size (5MB limit)
+      if (selectedImage.size > 5 * 1024 * 1024) {
+        throw new Error('Image size should be less than 5MB');
+      }
+
+      const updatedUser = await userService.uploadProfilePicture(selectedImage);
+      console.log('Upload successful:', updatedUser);
+      
+      updateUser(updatedUser);
       setSelectedImage(null);
+      
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (err) {
-      setError('Failed to upload profile picture');
-      console.error('Upload error:', err);
+      console.error('Profile picture upload failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload profile picture');
     } finally {
       setUploadingImage(false);
     }
@@ -116,7 +137,7 @@ export default function Profile() {
                       />
                     ) : (
                       <span className="text-4xl text-gray-500">
-                        {authUser?.full_name.charAt(0)}
+                        {authUser?.full_name?.charAt(0) || '?'}
                       </span>
                     )}
                   </div>
