@@ -124,7 +124,7 @@ export const expenseService = {
   },
 
   getGroupBalances(groupId: string): Promise<{ [key: string]: number }> {
-    return client.get(`/settlements/group/${groupId}/balances`)
+    return client.get(`/groups/${groupId}/expenses/balances`)
       .then(response => response.data);
   },
 
